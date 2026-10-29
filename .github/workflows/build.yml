@@ -184,8 +184,7 @@ jobs:
             tail -n 100 "$GITHUB_WORKSPACE/build.log"
             exit "$rc"
           fi
-          find out -name '*.ko' -type f -printf '%P  (%s bytes)
-' | sort
+          find out -name '*.ko' -type f | sort
           echo "MODULE_COUNT=$(find out -name '*.ko' -type f | wc -l)" >> "$GITHUB_ENV"
 
       - name: Upload build log on failure
