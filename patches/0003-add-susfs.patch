@@ -1,8 +1,8 @@
-From 266c64f8f6c4c585575f6bd24d97b60562017be8 Mon Sep 17 00:00:00 2001
+From 350719a8ed48f5738ec5b3303ddd1407f46502e9 Mon Sep 17 00:00:00 2001
 From: test <test@test.com>
 Date: Thu, 29 Oct 2026 06:06:34 -0400
-Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (clean port
- with pristine task_mmu.c)
+Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (with
+ SUSFS_IS_INODE_SUS_KSTAT)
 
 ---
  fs/Makefile               |    1 +
@@ -19,10 +19,10 @@ Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (clean port
  fs/susfs.c                | 1714 +++++++++++++++++++++++++++++++++++++
  include/linux/mount.h     |    3 +
  include/linux/susfs.h     |  289 +++++++
- include/linux/susfs_def.h |  123 +++
+ include/linux/susfs_def.h |  128 +++
  kernel/kallsyms.c         |   35 +
  kernel/sys.c              |   14 +
- 17 files changed, 3165 insertions(+), 69 deletions(-)
+ 17 files changed, 3170 insertions(+), 69 deletions(-)
  create mode 100644 fs/susfs.c
  create mode 100644 include/linux/susfs.h
  create mode 100644 include/linux/susfs_def.h
@@ -3905,10 +3905,10 @@ index 000000000..2e995af17
 +#endif
 diff --git a/include/linux/susfs_def.h b/include/linux/susfs_def.h
 new file mode 100644
-index 000000000..73e6e7cbe
+index 000000000..38e150fdc
 --- /dev/null
 +++ b/include/linux/susfs_def.h
-@@ -0,0 +1,123 @@
+@@ -0,0 +1,128 @@
 +#ifndef KSU_SUSFS_DEF_H
 +#define KSU_SUSFS_DEF_H
 +
@@ -4020,6 +4020,11 @@ index 000000000..73e6e7cbe
 +#define SUSFS_IS_INODE_SUS_MAP(inode) \
 +		inode && \
 +		unlikely(test_bit(AS_FLAGS_SUS_MAP, &inode->i_state)) && \
++		susfs_is_current_proc_umounted_app()
++
++#define SUSFS_IS_INODE_SUS_KSTAT(inode) \
++		inode && \
++		unlikely(test_bit(AS_FLAGS_SUS_KSTAT, &inode->i_state)) && \
 +		susfs_is_current_proc_umounted_app()
 +
 +#define SUSFS_IS_INODE_OPEN_REDIRECT_WITHOUT_UID_CHECK(inode) \
