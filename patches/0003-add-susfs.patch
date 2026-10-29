@@ -1,7 +1,8 @@
-From 8ecda2cd4c83e6545e802b3f478f4cd647dafbfe Mon Sep 17 00:00:00 2001
+From bdbb58be736509babdbc49ef87676acfdc2810b3 Mon Sep 17 00:00:00 2001
 From: test <test@test.com>
 Date: Thu, 29 Oct 2026 06:06:34 -0400
-Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (clean port)
+Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (clean port
+ without sched.h regression)
 
 ---
  fs/Makefile               |    1 +
@@ -17,12 +18,11 @@ Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (clean port)
  fs/statfs.c               |   84 ++
  fs/susfs.c                | 1714 +++++++++++++++++++++++++++++++++++++
  include/linux/mount.h     |    3 +
- include/linux/sched.h     |   20 +-
  include/linux/susfs.h     |  289 +++++++
  include/linux/susfs_def.h |  123 +++
  kernel/kallsyms.c         |   35 +
  kernel/sys.c              |   14 +
- 18 files changed, 3588 insertions(+), 494 deletions(-)
+ 17 files changed, 3572 insertions(+), 490 deletions(-)
  create mode 100644 fs/susfs.c
  create mode 100644 include/linux/susfs.h
  create mode 100644 include/linux/susfs_def.h
@@ -4729,76 +4729,6 @@ index 1ff21c19b..99adc5d71 100644
  } __randomize_layout;
  
  struct file; /* forward dec */
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 24ef41cf0..265bda95b 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -558,7 +558,6 @@ extern u32 sched_get_init_task_load(struct task_struct *p);
- extern void sched_update_cpu_freq_min_max(const cpumask_t *cpus, u32 fmin,
- 					  u32 fmax);
- extern int sched_set_boost(int enable);
--extern void free_task_load_ptrs(struct task_struct *p);
- 
- #define RAVG_HIST_SIZE_MAX  5
- #define NUM_BUSY_BUCKETS 10
-@@ -602,7 +601,7 @@ struct ravg {
- 	u32 sum, demand;
- 	u32 coloc_demand;
- 	u32 sum_history[RAVG_HIST_SIZE_MAX];
--	u32 *curr_window_cpu, *prev_window_cpu;
-+	u32 curr_window_cpu[CONFIG_NR_CPUS], prev_window_cpu[CONFIG_NR_CPUS];
- 	u32 curr_window, prev_window;
- 	u16 active_windows;
- 	u32 pred_demand;
-@@ -623,7 +622,6 @@ static inline int sched_set_boost(int enable)
- {
- 	return -EINVAL;
- }
--static inline void free_task_load_ptrs(struct task_struct *p) { }
- 
- static inline void sched_update_cpu_freq_min_max(const cpumask_t *cpus,
- 					u32 fmin, u32 fmax) { }
-@@ -1373,10 +1371,20 @@ struct task_struct {
- 	void				*security;
- #endif
- 
-+	struct {
-+		struct work_struct work;
-+		atomic_t running;
-+		bool free_stack;
-+	} async_free;
-+
- 	/*
- 	 * New fields for task_struct should be added above here, so that
- 	 * they are included in the randomized portion of task_struct.
- 	 */
-+#ifdef CONFIG_KSU_SUSFS
-+	u64 susfs_task_state;
-+	u64 susfs_last_fake_mnt_id;
-+#endif
- 	randomized_struct_fields_end
- 
- 	/* CPU-specific state of this task: */
-@@ -1694,6 +1702,11 @@ static inline bool cpupri_check_rt(void)
- }
- #endif
- 
-+void sched_migrate_to_cpumask_start(struct cpumask *old_mask,
-+				    const struct cpumask *dest);
-+void sched_migrate_to_cpumask_end(const struct cpumask *old_mask,
-+				  const struct cpumask *dest);
-+
- #ifndef cpu_relax_yield
- #define cpu_relax_yield() cpu_relax()
- #endif
-@@ -1965,7 +1978,6 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
- # define vcpu_is_preempted(cpu)	false
- #endif
- 
--extern long msm_sched_setaffinity(pid_t pid, struct cpumask *new_mask);
- extern long sched_setaffinity(pid_t pid, const struct cpumask *new_mask);
- extern long sched_getaffinity(pid_t pid, struct cpumask *mask);
- 
 diff --git a/include/linux/susfs.h b/include/linux/susfs.h
 new file mode 100644
 index 000000000..2e995af17
