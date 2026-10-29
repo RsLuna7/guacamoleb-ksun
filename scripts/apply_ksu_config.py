@@ -1,24 +1,6 @@
 #!/usr/bin/env python3
 """
-Apply the KernelSU options on top of the OFFICIAL kernel .config.
-
-Why not a plain defconfig + olddefconfig run?
-
-The official LineageOS kernel is built with a set of compiler-specific options
-that a `vendor/sm8150-perf_defconfig` + `olddefconfig` run does NOT reliably
-reproduce:
-
-    CONFIG_LTO=y / CONFIG_LTO_CLANG=y / CONFIG_THINLTO=y
-    CONFIG_SHADOW_CALL_STACK=y
-    CONFIG_INIT_STACK_ALL_ZERO=y
-
-Losing them yields a functionally different kernel (larger, weaker hardening)
-than the one the ROM ships.  Starting from the configuration embedded in the
-official kernel and changing ONLY the KernelSU delta keeps the build as close
-to upstream as possible.
-
-Usage:
-    apply_ksu_config.py <in.config> <out.config>
+Apply KernelSU and SUSFS options on top of the OFFICIAL kernel .config.
 """
 import sys
 
@@ -28,6 +10,23 @@ ENABLE = [
     'CONFIG_TMPFS_XATTR',
     'CONFIG_OVERLAY_FS_REDIRECT_DIR',
     'CONFIG_OVERLAY_FS_XINO_AUTO',
+    # SUSFS
+    'CONFIG_KSU_SUSFS',
+    'CONFIG_KSU_SUSFS_SUS_PATH',
+    'CONFIG_KSU_SUSFS_SUS_MOUNT',
+    'CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT',
+    'CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT',
+    'CONFIG_KSU_SUSFS_SUS_KSTAT',
+    'CONFIG_KSU_SUSFS_SUS_OVERLAYFS',
+    'CONFIG_KSU_SUSFS_TRY_UMOUNT',
+    'CONFIG_KSU_SUSFS_SPOOF_UNAME',
+    'CONFIG_KSU_SUSFS_ENABLE_LOG',
+    'CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS',
+    'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG',
+    'CONFIG_KSU_SUSFS_OPEN_REDIRECT',
+    'CONFIG_KSU_SUSFS_SUS_MAP',
+    'CONFIG_KSU_SUSFS_SUS_MEMFD',
+    'CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT',
 ]
 DISABLE = [
     'CONFIG_KSU_DEBUG',
@@ -36,7 +35,6 @@ DISABLE = [
 
 
 def parse(text):
-    """Return (ordered lines, dict name -> 'y'|'m'|value|None)."""
     lines = []
     values = {}
     for raw in text.splitlines():
@@ -78,7 +76,7 @@ def main():
         out.append(line)
 
     out.append('')
-    out.append('# ==== KernelSU delta (added by CI) ====')
+    out.append('# ==== KernelSU + SUSFS delta (added by CI) ====')
     for name in ENABLE:
         out.append('%s=y' % name)
     for name in DISABLE:
@@ -87,10 +85,11 @@ def main():
     with open(dst, 'w', encoding='utf-8') as f:
         f.write('\n'.join(out) + '\n')
 
-    print('applied KSU delta: %d enabled, %d disabled'
+    print('applied KSU+SUSFS delta: %d enabled, %d disabled'
           % (len(ENABLE), len(DISABLE)))
     return 0
 
 
 if __name__ == '__main__':
     sys.exit(main())
+

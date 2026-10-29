@@ -1,21 +1,11 @@
 #!/usr/bin/env python3
 """
-Fetch the official LineageOS boot.img for guacamoleb.
-
-Usage:
-    fetch_boot.py <lineageos-api-url-or-direct-boot-url> <output.img>
-
-If given a LineageOS v2 device API endpoint
-(https://download.lineageos.org/api/v2/devices/guacamoleb/builds), the newest
-build is selected and its `boot.img` file is downloaded.
-
-A direct URL ending in .img is downloaded as-is.
+Fetch the official LineageOS 23.2 boot.img for guacamoleb.
 """
 import json
 import ssl
 import sys
 import urllib.request
-
 
 UA = {'User-Agent': 'guacamoleb-ci/1.0'}
 
@@ -40,11 +30,17 @@ def main():
         if not isinstance(data, list) or not data:
             print('ERROR: unexpected API response', file=sys.stderr)
             return 1
-        build = data[0]
+        build = None
+        for b in data:
+            if b.get('version') == '23.2' or b.get('date') == '2026-10-04':
+                build = b
+                break
+        if not build:
+            build = data[0]
+
         boot_url = None
         for f in build.get('files', []):
             if f.get('filename') == 'boot.img':
-                # The API returns relative paths under `url`.
                 boot_url = f.get('url') or f.get('path')
                 break
         if not boot_url:
@@ -55,7 +51,7 @@ def main():
             boot_url = 'https://download.lineageos.org' + boot_url
         elif not boot_url.startswith('http'):
             boot_url = 'https://download.lineageos.org/' + boot_url.lstrip('/')
-        print('build date: %s' % build.get('date'))
+        print('selected build date: %s (version %s)' % (build.get('date'), build.get('version')))
 
     print('downloading %s' % boot_url)
     blob = get(boot_url)
@@ -67,3 +63,4 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+
