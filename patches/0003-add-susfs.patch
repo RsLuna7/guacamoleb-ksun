@@ -1,8 +1,8 @@
-From 350719a8ed48f5738ec5b3303ddd1407f46502e9 Mon Sep 17 00:00:00 2001
+From 2e71e73f9cb063e622e22ef5dac745eeece17079 Mon Sep 17 00:00:00 2001
 From: test <test@test.com>
 Date: Thu, 29 Oct 2026 06:06:34 -0400
-Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (with
- SUSFS_IS_INODE_SUS_KSTAT)
+Subject: [PATCH] guacamoleb: add SUSFS 2.3.0 kernel integration (with avc log
+ spoofing symbol defined)
 
 ---
  fs/Makefile               |    1 +
@@ -1876,7 +1876,7 @@ index e6ceb3e87..03af7d770 100644
  		buf->f_flags = calculate_f_flags(path->mnt);
 diff --git a/fs/susfs.c b/fs/susfs.c
 new file mode 100644
-index 000000000..7cbf07466
+index 000000000..8a4bfeb6f
 --- /dev/null
 +++ b/fs/susfs.c
 @@ -0,0 +1,1714 @@
@@ -3239,7 +3239,7 @@ index 000000000..7cbf07466
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MEMFD
 +
 +/* susfs avc log spoofing */
-+extern bool susfs_is_avc_log_spoofing_enabled;
++bool susfs_is_avc_log_spoofing_enabled = false;
 +
 +void susfs_set_avc_log_spoofing(void __user **user_info) {
 +	struct st_susfs_avc_log_spoofing info = {0};
